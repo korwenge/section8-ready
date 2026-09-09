@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Free 24-point possession-readiness checklist for landlords in England under the Renters' Rights Act — paperwork, evidence file, and ground-specific prep for Section 8.">
+<title>Section 8 Ready</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #F6F5F1;
+    --surface: #FFFFFF;
+    --ink: #22282E;
+    --ink-soft: #4A545C;
+    --muted: #71797F;
+    --line: #D9DBD6;
+    --line-soft: #E7E8E3;
+    --navy: #1B4965;
+    --navy-soft: #E4EDF2;
+    --good: #2E7D4F;
+    --good-soft: #E2EFE7;
+    --warn: #A3641C;
+    --warn-soft: #F5EBDB;
+    --bad: #A63A2E;
+    --bad-soft: #F4E4E1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #15191D;
+      --surface: #1D2329;
+      --ink: #E6E8E9;
+      --ink-soft: #B4BCC2;
+      --muted: #8B949B;
+      --line: #333B42;
+      --line-soft: #2A3138;
+      --navy: #5FA8CF;
+      --navy-soft: #1E2E38;
+      --good: #58B283;
+      --good-soft: #1E2F26;
+      --warn: #D69A4E;
+      --warn-soft: #322818;
+      --bad: #D3796C;
+      --bad-soft: #35211E;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #15191D;
+    --surface: #1D2329;
+    --ink: #E6E8E9;
+    --ink-soft: #B4BCC2;
+    --muted: #8B949B;
+    --line: #333B42;
+    --line-soft: #2A3138;
+    --navy: #5FA8CF;
+    --navy-soft: #1E2E38;
+    --good: #58B283;
+    --good-soft: #1E2F26;
+    --warn: #D69A4E;
+    --warn-soft: #322818;
+    --bad: #D3796C;
+    --bad-soft: #35211E;
+  }
+  html { color-scheme: light dark; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+    font-size: 17px; line-height: 1.55;
+    padding: 0 20px;
+  }
+  .wrap { max-width: 740px; margin: 0 auto; padding-block: 48px 72px; }
+  .eyebrow { font-size: 12.5px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; color: var(--navy); }
+  h1 { font-family: "Bitter", Georgia, serif; font-size: clamp(32px, 6vw, 46px); font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; margin: 10px 0 14px; text-wrap: balance; }
+  .standfirst { font-size: 19px; color: var(--ink-soft); max-width: 620px; margin: 0; }
+  .datestamp { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; color: var(--muted); margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h2 { font-family: "Bitter", Georgia, serif; font-size: 24px; font-weight: 600; margin: 52px 0 6px; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 15.5px; margin: 0 0 18px; max-width: 620px; }
+  p { margin: 0 0 14px; max-width: 640px; }
+  a { color: var(--navy); text-underline-offset: 3px; }
+  strong { font-weight: 700; }
+
+  .why { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--navy); border-radius: 6px; padding: 18px 22px; margin: 30px 0 0; }
+  .why p { max-width: none; }
+  .why p:last-child { margin-bottom: 0; }
+
+  /* Score bar */
+  .scorebar {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 18px; margin: 34px 0 8px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .scorebar .count { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meter { flex: 1 1 140px; height: 8px; background: var(--line-soft); border-radius: 4px; overflow: hidden; min-width: 100px; }
+  .meter i { display: block; height: 100%; width: 0%; background: var(--navy); border-radius: 4px; transition: width 0.25s ease, background 0.25s ease; }
+  .verdict-chip { font-size: 13.5px; font-weight: 700; padding: 4px 12px; border-radius: 999px; background: var(--line-soft); color: var(--ink-soft); white-space: nowrap; }
+  .verdict-chip.good { background: var(--good-soft); color: var(--good); }
+  .verdict-chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .verdict-chip.bad { background: var(--bad-soft); color: var(--bad); }
+
+  /* Checklist */
+  .check-group { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 0; margin: 14px 0 0; }
+  .check-item { display: grid; grid-template-columns: 30px 1fr; gap: 0 12px; padding: 13px 18px; border-bottom: 1px solid var(--line-soft); cursor: pointer; }
+  .check-item:last-child { border-bottom: none; }
+  .check-item input { width: 19px; height: 19px; margin: 3px 0 0; accent-color: var(--navy); cursor: pointer; }
+  .check-item .t { font-weight: 600; font-size: 16px; }
+  .check-item .d { grid-column: 2; color: var(--muted); font-size: 14.5px; line-height: 1.5; margin-top: 2px; }
+  .check-item .d b { color: var(--warn); font-weight: 700; }
+
+  /* Grounds table */
+  .grounds { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 16px 0; }
+  .ground { background: var(--surface); padding: 16px 20px; border-bottom: 1px solid var(--line-soft); }
+  .ground:last-child { border-bottom: none; }
+  .ground-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .gnum { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 500; color: var(--navy); background: var(--navy-soft); padding: 2px 9px; border-radius: 4px; white-space: nowrap; }
+  .gname { font-weight: 700; font-size: 16.5px; }
+  .gnotice { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .ground .gev { font-size: 14.5px; color: var(--ink-soft); margin: 8px 0 0; line-height: 1.55; }
+  .ground .gev b { font-weight: 700; color: var(--ink); }
+
+  .redflag { background: var(--bad-soft); border: 1px solid var(--line); border-radius: 8px; padding: 18px 22px; margin: 20px 0; }
+  .redflag p { max-width: none; margin-bottom: 8px; }
+  .redflag p:last-child { margin-bottom: 0; }
+
+  .footer-note { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .footer-note p { max-width: none; margin-bottom: 10px; }
+
+  @media (max-width: 520px) {
+    .gnotice { margin-left: 0; width: 100%; }
+    .scorebar { padding: 10px 14px; gap: 10px; }
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">England · Private landlords · Free checklist</span>
+    <h1>Could you actually get your property back tomorrow?</h1>
+    <p class="standfirst">Section 21 is gone. Every possession now runs through Section 8 grounds — and Section 8 claims live or die on <strong>evidence you should be collecting now</strong>, not when things go wrong. Tick through the 24 checks below and see where you stand.</p>
+    <p class="datestamp">Reflects the Renters' Rights Act as in force September 2026 · not legal advice</p>
+  </header>
+
+  <div class="why">
+    <p><strong>Why this matters now.</strong> Since <strong>1 May 2026</strong> there is no no-fault route: to recover possession you must prove a Section 8 ground in court. Judges strike out claims over paperwork defects that were fixable years earlier. Councils gained stronger inspection and document-demand powers in December 2025, and civil penalties for getting tenancy compliance wrong run up to <strong>£7,000</strong>. The landlords who get possession quickly in 2026 are the ones whose file was ready before they needed it.</p>
+  </div>
+
+  <div class="scorebar">
+    <span class="count"><span id="score">0</span> / 24 confirmed</span>
+    <div class="meter"><i id="meterfill"></i></div>
+    <span class="verdict-chip" id="verdict">Tick items to see your readiness</span>
+  </div>
+
+  <h2>Part 1 — Paperwork foundations</h2>
+  <p class="sub">Defects here can invalidate a possession claim regardless of how strong your ground is.</p>
+  <div class="check-group" id="grp1">
+    <label class="check-item"><input type="checkbox" id="c1"><span class="t">Written statement of terms served</span><span class="d">Mandatory since 1 May 2026 for new tenancies (existing tenancies needed one by 31 May 2026). No statement = exposure to penalties and a weaker court position.</span></label>
+    <label class="check-item"><input type="checkbox" id="c2"><span class="t">Deposit protected + prescribed information served within 30 days</span><span class="d">An unprotected deposit can block possession until fixed and triggers 1–3× compensation claims.</span></label>
+    <label class="check-item"><input type="checkbox" id="c3"><span class="t">Gas safety certificate — current, and given to the tenant</span><span class="d">Keep proof it was provided, not just that it exists.</span></label>
+    <label class="check-item"><input type="checkbox" id="c4"><span class="t">EICR in date (5 years) and provided</span></label>
+    <label class="check-item"><input type="checkbox" id="c5"><span class="t">EPC valid and provided before the tenancy began</span></label>
+    <label class="check-item"><input type="checkbox" id="c6"><span class="t">Tenancy structure is compliant</span><span class="d">All tenancies are now periodic; rent period no longer than one month; no rent accepted before the agreement was finalised.</span></label>
+    <label class="check-item"><input type="checkbox" id="c7"><span class="t">Rent increases only via Section 13 notice (Form 4A)</span><span class="d">Rent-review clauses are void. An informal "we agreed £50 more by text" increase can poison an arrears calculation.</span></label>
+    <label class="check-item"><input type="checkbox" id="c8"><span class="t">Pet requests answered in writing within 28 days</span><span class="d">With reasonable grounds if refusing — and a copy kept.</span></label>
+  </div>
+
+  <h2>Part 2 — The evidence file</h2>
+  <p class="sub">This is what wins Section 8 hearings. If it isn't written down and dated, in court it didn't happen.</p>
+  <div class="check-group" id="grp2">
+    <label class="check-item"><input type="checkbox" id="c9"><span class="t">Dated rent ledger, kept up to date</span><span class="d">Every payment, every miss, running balance. This single document decides Ground 8 claims.</span></label>
+    <label class="check-item"><input type="checkbox" id="c10"><span class="t">Arrears letters sent and filed at each stage</span><span class="d">Polite reminder → formal demand → notice warning. Courts expect to see the trail, and it protects you on the discretionary grounds too.</span></label>
+    <label class="check-item"><input type="checkbox" id="c11"><span class="t">Every repair request and your response, logged with dates</span><span class="d">Tenants' most common defence is disrepair. A timestamped log of request → action → completion neutralises it.</span></label>
+    <label class="check-item"><input type="checkbox" id="c12"><span class="t">Inspection records with dated photos</span><span class="d">Regular, diarised, and notified in writing beforehand.</span></label>
+    <label class="check-item"><input type="checkbox" id="c13"><span class="t">Copies of every notice served + proof of service</span><span class="d">Photo of the notice, method of delivery, date, and ideally a witness or postal proof.</span></label>
+    <label class="check-item"><input type="checkbox" id="c14"><span class="t">Phone conversations confirmed by follow-up message</span><span class="d">"As discussed on the phone today…" — one line turns a deniable call into evidence.</span></label>
+    <label class="check-item"><input type="checkbox" id="c15"><span class="t">Everything in one place, backed up</span><span class="d">A single folder (physical or cloud) per tenancy. If your evidence lives across an old phone, an email account and a drawer, it isn't ready.</span></label>
+  </div>
+
+  <h2>Part 3 — Ground-specific readiness</h2>
+  <p class="sub">Tick the ones where you'd have the evidence <em>today</em> if you needed that ground. The four grounds below cover most real possession cases.</p>
+
+  <div class="grounds">
+    <div class="ground">
+      <div class="ground-head"><span class="gnum">Ground 1A</span><span class="gname">Selling the property</span><span class="gnotice">4 months' notice · mandatory</span></div>
+      <p class="gev">Not usable in the first <b>12 months</b> of the tenancy. After using it you cannot re-let or market the property for <b>12 months</b> — misuse carries serious penalties. <b>Evidence to hold:</b> estate agent instruction, solicitor engagement letter, marketing records.</p>
+    </div>
+    <div class="ground">
+      <div class="ground-head"><span class="gnum">Ground 1</span><span class="gname">You or close family moving in</span><span class="gnotice">4 months' notice · mandatory</span></div>
+      <p class="gev">Same 12-month protected period and re-letting ban. Covers parent, grandparent, sibling, child, grandchild. <b>Evidence to hold:</b> a sworn statement of intent, plus anything showing the genuine plan (e.g. family member's notice on their current home).</p>
+    </div>
+    <div class="ground">
+      <div class="ground-head"><span class="gnum">Ground 8</span><span class="gname">Serious rent arrears</span><span class="gnotice">4 weeks' notice · mandatory</span></div>
+      <p class="gev">Threshold is now <b>3 months'</b> arrears (13 weeks if paid weekly/fortnightly) — and it must hold both when you serve notice <b>and</b> at the hearing. Universal Credit housing-element delays don't count toward the total. <b>Evidence to hold:</b> the rent ledger, bank statements, the arrears letter trail. Pair with discretionary Grounds 10/11 as backup.</p>
+    </div>
+    <div class="ground">
+      <div class="ground-head"><span class="gnum">Grounds 12 / 14 / 7A</span><span class="gname">Breach & anti-social behaviour</span><span class="gnotice">varies · 7A immediate</span></div>
+      <p class="gev">Mostly discretionary — the judge weighs your whole file. <b>Evidence to hold:</b> dated incident log, neighbour complaints in writing, police reference numbers, photos, and your written warnings to the tenant.</p>
+    </div>
+  </div>
+
+  <div class="check-group" id="grp3">
+    <label class="check-item"><input type="checkbox" id="c16"><span class="t">I know which ground(s) I'd realistically rely on</span></label>
+    <label class="check-item"><input type="checkbox" id="c17"><span class="t">For that ground, my evidence exists today — not "I could pull it together"</span></label>
+    <label class="check-item"><input type="checkbox" id="c18"><span class="t">I know the notice period and the correct form for it</span></label>
+    <label class="check-item"><input type="checkbox" id="c19"><span class="t">I understand the 12-month protected period and re-letting ban on Grounds 1/1A</span></label>
+    <label class="check-item"><input type="checkbox" id="c20"><span class="t">My arrears position is calculated correctly (UC element excluded)</span></label>
+  </div>
+
+  <h2>Part 4 — Council-inspection readiness</h2>
+  <p class="sub">Local authorities can now demand documents and inspect with less warning. The same file that wins in court satisfies an inspector.</p>
+  <div class="check-group" id="grp4">
+    <label class="check-item"><input type="checkbox" id="c21"><span class="t">I could produce all certificates within 24 hours</span></label>
+    <label class="check-item"><input type="checkbox" id="c22"><span class="t">My property meets basic hazard standards (damp, mould, electrics) and I have photos to show it</span></label>
+    <label class="check-item"><input type="checkbox" id="c23"><span class="t">My listings comply — advertised rent honoured, no benefit discrimination</span><span class="d">You can't accept offers above the advertised rent, and "no DSS" wording is banned.</span></label>
+    <label class="check-item"><input type="checkbox" id="c24"><span class="t">I'm ready for PRS database registration (rolling out from 2027)</span><span class="d">Annual registration per property — one more reason to have the file in order now.</span></label>
+  </div>
+
+  <div class="redflag">
+    <p><strong>If you scored under 18:</strong> you're not alone — most self-managing landlords fail this check, because none of the old software was built for evidence. But understand what it means: if your tenant stops paying next month, the gaps above become months of delay and lost rent in court. The fix is boring and cheap: one folder per tenancy, everything dated, starting this week.</p>
+  </div>
+
+  <div class="footer-note">
+    <p><strong>About this checklist.</strong> Compiled September 2026 from the Renters' Rights Act 2025 commencement guidance and practitioner commentary (NRLA guidance, Keystone Law, Osbornes Law analyses of grounds and notice periods). It is general information for landlords in England, not legal advice — for a live possession case, speak to a solicitor.</p>
+    <p><strong>Found a gap in your file?</strong> Reply in the thread where you found this with what's missing — genuinely curious which of these 24 items catches most landlords out, and happy to answer questions.</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.check-item input'));
+  var scoreEl = document.getElementById('score');
+  var fill = document.getElementById('meterfill');
+  var chip = document.getElementById('verdict');
+  var KEY = 's8ready-v1';
+
+  function verdictFor(n) {
+    if (n >= 22) return { t: 'Possession-ready', c: 'good' };
+    if (n >= 18) return { t: 'Nearly there — close the gaps', c: 'good' };
+    if (n >= 12) return { t: 'Exposed — fixable in a weekend', c: 'warn' };
+    if (n >= 1)  return { t: 'At risk if anything goes wrong', c: 'bad' };
+    return { t: 'Tick items to see your readiness', c: '' };
+  }
+
+  function update() {
+    var n = boxes.filter(function (b) { return b.checked; }).length;
+    scoreEl.textContent = n;
+    fill.style.width = (n / boxes.length * 100) + '%';
+    var v = verdictFor(n);
+    chip.textContent = v.t;
+    chip.className = 'verdict-chip' + (v.c ? ' ' + v.c : '');
+    fill.style.background = v.c === 'bad' ? 'var(--bad)' : v.c === 'warn' ? 'var(--warn)' : 'var(--navy)';
+    try { localStorage.setItem(KEY, JSON.stringify(boxes.map(function (b) { return b.checked; }))); } catch (e) {}
+  }
+
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (saved && saved.length === boxes.length) boxes.forEach(function (b, i) { b.checked = !!saved[i]; });
+  } catch (e) {}
+
+  boxes.forEach(function (b) { b.addEventListener('change', update); });
+  update();
+})();
+</script>
+</body>
+</html>
