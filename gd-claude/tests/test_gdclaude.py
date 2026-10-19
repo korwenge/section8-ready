@@ -166,7 +166,9 @@ def test_assistant_reports_bad_tool_input_and_declines(tmp_path, monkeypatch):
 
     bad, declined = assistant.messages[2]["content"]
     assert bad["is_error"] and "palette" in bad["content"]
-    assert json.loads(declined["content"]) == {"written": False, "player_feedback": "make it harder"}
+    declined = json.loads(declined["content"])
+    assert declined["written"] is False and declined["player_feedback"] == "make it harder"
+    assert declined["jump_check"]["beatable"] is True
     assert [s["name"] for s in LocalLevels(path).summaries()] == ["My First Level"]
     assert "[[Y]]: make it harder" in vault.read("Feedback Log")
 

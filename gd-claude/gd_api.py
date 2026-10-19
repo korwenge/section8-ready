@@ -129,10 +129,15 @@ def _parse_level_list(text):
             for chunk in sections[0].split("|") if chunk]
 
 
-def search_levels(query="", search_type="search", page=0):
-    text = _post("getGJLevels21.php", str=query,
-                 type=SEARCH_TYPES.get(search_type, 0), page=page)
-    return _parse_level_list(text)
+DIFFICULTY_FILTERS = {"auto": -3, "easy": 1, "normal": 2, "hard": 3, "harder": 4,
+                      "insane": 5, "demon": -2}
+
+
+def search_levels(query="", search_type="search", page=0, difficulty=None):
+    params = {"str": query, "type": SEARCH_TYPES.get(search_type, 0), "page": page}
+    if difficulty in DIFFICULTY_FILTERS:
+        params["diff"] = DIFFICULTY_FILTERS[difficulty]
+    return _parse_level_list(_post("getGJLevels21.php", **params))
 
 
 def decode_level_string(data):
@@ -178,16 +183,24 @@ def analyze_level_string(level_string):
     }
 
 
-def get_level(level_id):
-    """Download a level. Use -1 for the current daily and -2 for the weekly demon."""
+def download_level(level_id):
+    """Returns (summary, decoded level string or None). -1 = daily, -2 = weekly demon."""
     text = _post("downloadGJLevel22.php", levelID=level_id)
     raw = parse_kv(text.split("#")[0])
     summary = level_summary(raw)
-    if raw.get("4"):
-        try:
-            summary["stats"] = analyze_level_string(decode_level_string(raw["4"]))
-        except (ValueError, OSError, zlib.error) as e:
-            summary["stats"] = {"error": f"could not decode level data: {e}"}
+    try:
+        return summary, decode_level_string(raw["4"]) if raw.get("4") else None
+    except (ValueError, OSError, zlib.error):
+        return summary, None
+
+
+def get_level(level_id):
+    """Download a level and summarise it."""
+    summary, level_string = download_level(level_id)
+    if level_string:
+        summary["stats"] = analyze_level_string(level_string)
+    else:
+        summary["stats"] = {"error": "could not decode level data"}
     return summary
 
 

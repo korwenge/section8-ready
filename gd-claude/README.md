@@ -15,6 +15,7 @@ you> make a short easy cube level called Sunrise with a ship part in the middle
   1 |          #       S     ^          ^     C
   0 |   ^     ##  ^^   S  #######  ###########C   ^
     +==============================================
+Jump check: beatable (found a way through)
 Write this to your save? [y = yes / n = no / or type feedback]
 ```
 
@@ -25,6 +26,32 @@ Write this to your save? [y = yes / n = no / or type feedback]
 - **Get inspiration**: "what does today's daily level use?" (this downloads from the official GD servers)
 
 If you type feedback instead of `y` at the preview, Claude redesigns the part based on what you said.
+
+## Jump checker
+Claude can't play the game, so GD Claude includes a physics simulation (`physics.py`).
+It plays a design by trying every possible click timing at once. It tells Claude:
+- whether the design can be beaten at all
+- where the best attempt died, and what killed it ("hit the spike at col 13, row 0")
+- one sequence of inputs that beats it ("jump @ col 9.2, yellow orb @ col 14, ...")
+
+Claude has to run it before it saves anything, and it redesigns until the level is
+beatable. The preview shows you the result too. It covers the cube, ship, ball, UFO and
+wave (the robot is checked as a cube), plus gravity, mini and speed portals, pads, orbs,
+blocks, spikes and saws. Spider, swing and dual mode aren't simulated yet, so it says
+when it stops checking. The physics numbers are close to the real game but not exact,
+so still playtest, especially jumps that are only barely possible.
+
+## Study mode
+```
+python gdclaude.py --vault "path/to/vault" --study "easy featured levels"
+```
+This downloads rated levels from the official servers and measures how they're built:
+section lengths, how dense the hazards are, longest spike runs, the breaks between
+obstacles, orbs and pads per 100 columns, and how much is decoration. Claude turns the
+numbers into rules, such as "rated easy levels: longest spike run 2, about 6 empty columns
+between obstacles", and saves them to `Design Rules` in your vault. Then every level it
+builds afterwards follows them. You can also ask for it in chat: "study some insane demons
+and compare them to my level".
 
 ## Setup
 1. Install Python 3.10 or newer, then run `pip install -r requirements.txt`
@@ -70,6 +97,8 @@ Writing your own rules into `My Style` is the fastest way to teach it.
 | `gdclaude.py` | Chat loop. Claude (`claude-opus-5-5`) uses tools to list and inspect your levels, create levels, add sections, and look up online levels |
 | `save_file.py` | Decrypts and re-encrypts `CCLocalLevels.dat` (XOR+base64+gzip on Windows, AES on macOS) |
 | `level_builder.py` | Claude designs on a grid (1 cell = 1 block, row 0 = ground). This file turns that grid into real GD objects (`1,8,2,315,3,15`) and draws the previews |
+| `physics.py` | Jump checker: simulates the player and searches for a way through |
+| `study.py` | Study mode: measures real levels downloaded from the servers |
 | `vault.py` | Memory: reads and writes notes in your Obsidian vault (only inside its `GD Claude/` folder) |
 | `gd_api.py` | Talks to the official boomlings.com servers for searching and downloading levels |
 

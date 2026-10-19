@@ -9,6 +9,7 @@ review them, and build new levels or sections directly into your save file
     python gdclaude.py "make a short easy cube level called Sunrise"
     python gdclaude.py --list               # just list your levels
     python gdclaude.py --vault ~/Obsidian/MyVault   # remember things between sessions
+    python gdclaude.py --vault ~/Obsidian/MyVault --study "easy featured levels"
 """
 
 import argparse
@@ -19,6 +20,8 @@ import sys
 import anthropic
 
 import gd_api
+import physics
+import study
 from level_builder import OBJECT_SCHEMA, PALETTE, DesignError, from_gd_object, preview, to_gd_object, validate
 from save_file import LocalLevels
 from vault import Vault
@@ -31,8 +34,9 @@ player's Create tab. You help them design, review and build levels.
 ## How you place objects
 You design on a grid. One cell is one block (30 GD units). `col` 0 is where the player \
 spawns and the level scrolls right; `row` 0 rests on the ground, row 1 is one block up. \
-Half cells (e.g. col 12.5) are allowed. Rotate 180 for ceiling spikes. Available object \
-types: {", ".join(sorted(PALETTE))}.
+Half cells (e.g. col 12.5) are allowed. Rotate 180 for ceiling spikes. A saw is big \
+(about 2 cells across). Portals are 3 cells tall, so put them at row 1 to catch a player \
+on the ground. Available object types: {", ".join(sorted(PALETTE))}.
 
 ## Gameplay reference (normal 1x speed unless noted)
 - The player moves about 10.4 cells per second at 1x (slow ~8.4, fast ~12.9, faster ~15.6, \
@@ -45,7 +49,20 @@ or orb. A yellow pad/orb launches ~4 cells high; pink is a smaller hop; blue fli
 keep corridors at least 3 cells tall for easy, 2 for hard. Wave at mini size is very hard.
 - Give players breathing room: a few empty columns after a portal, before a gamemode change, \
 and at the start (begin obstacles around col 8-10).
-- Every jump must be possible. Before building, mentally play through the design.
+- Every jump must be possible.
+
+## Jump checker
+check_design runs a physics simulation that tries every possible input timing and tells \
+you whether the design can be beaten, where the best attempt died and why, and one input \
+route that works. ALWAYS run it before create_level / add_to_level, and fix the design \
+until it is beatable. It is approximate: real-game timing can differ a little, and spider, \
+swing and dual aren't simulated. So for easy and normal levels, leave margin and don't \
+build jumps that are only barely possible. Use the route to explain how to play a section.
+
+## Studying real levels
+study_online_levels downloads rated levels and measures them (section lengths, hazard \
+density, longest spike runs, breaks between obstacles, orbs and pads per 100 cols, \
+decoration share). Use it to calibrate: compare those numbers with your own designs.
 
 ## How you work
 - Read the player's existing levels with the tools before commenting on them.
@@ -54,7 +71,7 @@ platforms and structures, not only spikes. Use color triggers for atmosphere.
 - Build large levels in sections of up to a few hundred objects (create_level for the first \
 section, then add_to_level for the rest).
 - The player sees an ASCII preview and must approve every change; if they decline, adjust.
-- Remind them to open the level in the editor and playtest -- you can't run the game.
+- Remind them to open the level in the editor and playtest: the checker is only a simulation.
 - Keep chat replies short and friendly; GD slang is fine."""
 
 MEMORY_PROMPT = """
@@ -65,8 +82,9 @@ how you get better over time, so use them and keep them up to date with save_not
 - "My Style": the player's taste (favourite gamemodes, difficulty, decoration style, \
   pet peeves). Update it whenever you learn something new about what they like.
 - "Design Rules": general lessons about what makes gameplay good or bad, e.g. after the \
-  player says a jump was impossible or a section felt great. Write rules you can reuse, \
-  with numbers where possible ("2-cell ship corridors felt too tight for an easy level").
+  player says a jump was impossible or a section felt great, or after studying real levels \
+  ("rated easy levels: median 6-col breaks between hazards, longest spike run 2"). Write \
+  rules you can reuse, with numbers where possible.
 - "Feedback Log": filled in automatically when the player rejects a preview.
 - "Levels/<level name>": one note per level you work on: its idea, sections built so \
   far (with column ranges), and what's left to do. Link notes with [[wiki links]].
@@ -124,6 +142,36 @@ TOOLS = [
                 "placement": {"type": "string", "enum": ["after_end", "absolute"]},
             },
             "required": ["name", "objects"],
+        },
+    },
+    {
+        "name": "check_design",
+        "description": ("Jump checker: simulate the player through a design (trying every input "
+                        "timing) and report whether it is beatable, where and why the best attempt "
+                        "died, and one working input route. Pass level_name to test the objects as "
+                        "an addition to the end of that existing level (like add_to_level does)."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "objects": {"type": "array", "items": OBJECT_SCHEMA},
+                "level_name": {"type": "string"},
+            },
+            "required": ["objects"],
+        },
+    },
+    {
+        "name": "study_online_levels",
+        "description": ("Download up to 10 rated levels from the GD servers and measure how they "
+                        "are built. Returns per-level numbers and the medians across them."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "search_type": {"type": "string", "enum": sorted(gd_api.SEARCH_TYPES),
+                                "description": "Default 'awarded' (star-rated levels)."},
+                "difficulty": {"type": "string", "enum": sorted(gd_api.DIFFICULTY_FILTERS)},
+                "query": {"type": "string", "description": "Optional name search."},
+                "count": {"type": "integer", "description": "1-10, default 5."},
+            },
         },
     },
     {
@@ -205,9 +253,36 @@ class Assistant:
             raise DesignError(f"'{key}' must be a non-empty string")
         return args[key]
 
-    def _confirm(self, title, objects, col_offset=0, level_name=None):
+    @staticmethod
+    def _split(level_string):
+        header, *objects = level_string.split(";")
+        return gd_api.parse_kv(header, ","), [o for o in objects if o]
+
+    def _append_offset(self, level):
+        _, existing = self._split(self.levels.level_string(level))
+        cols = [from_gd_object(gd_api.parse_kv(o, ","))["col"] for o in existing]
+        return int(max(cols, default=-4)) + 4
+
+    def _jump_check(self, objects, level=None, col_offset=0):
+        """Simulate the design on its own, or appended to an existing level."""
+        header, existing = self._split(self.levels.level_string(level)) if level else ({}, [])
+        gd_objects = existing + [to_gd_object(o, col_offset) for o in objects]
+        return physics.check([gd_api.parse_kv(o, ",") for o in gd_objects], header)
+
+    @staticmethod
+    def _describe_check(result):
+        if result["beatable"]:
+            return "beatable (found a way through)"
+        if result["beatable"] is False:
+            return (f"IMPOSSIBLE: the best attempt died at col {result['best_attempt_reached_col']:g} "
+                    f"({result['died_because']})")
+        return f"not fully checked ({result.get('note')})"
+
+    def _confirm(self, title, objects, col_offset=0, level_name=None, check=None):
         print(f"\n--- {title} ({len(objects)} objects) ---")
         print(preview(objects, col_offset))
+        if check:
+            print(f"Jump check: {self._describe_check(check)}")
         if self.auto_yes:
             return True, ""
         answer = input("Write this to your save? [y = yes / n = no / or type feedback] ").strip()
@@ -230,6 +305,7 @@ class Assistant:
                 for o in level_string.split(";")[1:] if o]
         window = sorted((o for o in grid if start <= o["col"] <= end), key=lambda o: (o["col"], o["row"]))
         drawable = [o for o in window if o["type"] in PALETTE]
+        header, objects = self._split(level_string)
         return {
             "name": level.get("k2"),
             "stats": gd_api.analyze_level_string(level_string),
@@ -238,37 +314,56 @@ class Assistant:
             "objects_in_window": window[:800],
             "truncated": len(window) > 800,
             "preview": preview(drawable),
+            "jump_check": physics.check([gd_api.parse_kv(o, ",") for o in objects], header),
         }
 
     def tool_create_level(self, args):
         name = self._require_str(args, "name")
         objects = args.get("objects")
         validate(objects)
-        ok, feedback = self._confirm(f"New level '{name}'", objects, level_name=name)
+        check = self._jump_check(objects)
+        ok, feedback = self._confirm(f"New level '{name}'", objects, level_name=name, check=check)
         if not ok:
-            return {"written": False, "player_feedback": feedback or "Player declined."}
+            return {"written": False, "player_feedback": feedback or "Player declined.", "jump_check": check}
         self.levels.create_level(name, str(args.get("description") or ""),
                                  [to_gd_object(o) for o in objects])
         self.levels.save()
-        return {"written": True, "level": name, "objects": len(objects)}
+        return {"written": True, "level": name, "objects": len(objects), "jump_check": check}
 
     def tool_add_to_level(self, args):
         level = self.levels.find(self._require_str(args, "name"))
         objects = args.get("objects")
         validate(objects)
-        offset = 0
-        if args.get("placement", "after_end") == "after_end":
-            existing = [from_gd_object(gd_api.parse_kv(o, ","))
-                        for o in self.levels.level_string(level).split(";")[1:] if o]
-            offset = int(max((o["col"] for o in existing), default=-4)) + 4
+        offset = self._append_offset(level) if args.get("placement", "after_end") == "after_end" else 0
+        check = self._jump_check(objects, level, offset)
         ok, feedback = self._confirm(f"Add to '{level.get('k2')}' starting at col {offset}",
-                                     objects, offset, level_name=level.get("k2"))
+                                     objects, offset, level_name=level.get("k2"), check=check)
         if not ok:
-            return {"written": False, "player_feedback": feedback or "Player declined."}
+            return {"written": False, "player_feedback": feedback or "Player declined.", "jump_check": check}
         self.levels.append_objects(level, [to_gd_object(o, offset) for o in objects])
         self.levels.save()
         return {"written": True, "level": level.get("k2"), "objects": len(objects),
-                "placed_from_col": offset}
+                "placed_from_col": offset, "jump_check": check}
+
+    def tool_check_design(self, args):
+        objects = args.get("objects")
+        validate(objects)
+        if args.get("level_name"):
+            level = self.levels.find(self._require_str(args, "level_name"))
+            offset = self._append_offset(level)
+            result = self._jump_check(objects, level, offset)
+            result["your_col_0_is_level_col"] = offset
+        else:
+            result = self._jump_check(objects)
+        print(f"  jump check: {self._describe_check(result)}")
+        return result
+
+    def tool_study_online_levels(self, args):
+        count = args.get("count") if isinstance(args.get("count"), int) else 5
+        count = max(1, min(count, 10))
+        print(f"  (downloading and measuring {count} levels from the GD servers...)")
+        return study.study(str(args.get("search_type") or "awarded"), args.get("difficulty"),
+                           count, str(args.get("query") or ""))
 
     def tool_read_note(self, args):
         return self.vault.read(self._require_str(args, "title"))
@@ -364,6 +459,8 @@ def main():
     parser.add_argument("--list", action="store_true", help="list your Create tab levels and exit")
     parser.add_argument("--vault", default=os.environ.get("GD_CLAUDE_VAULT"),
                         help="your Obsidian vault folder, for memory (or set GD_CLAUDE_VAULT)")
+    parser.add_argument("--study", nargs="?", const="a mix of star-rated levels", metavar="WHAT",
+                        help='study real levels first and update Design Rules, e.g. --study "easy featured levels"')
     args = parser.parse_args()
 
     if args.list:
@@ -381,6 +478,13 @@ def main():
         print("(No --vault given: I won't remember anything after you quit.)\n")
     assistant = Assistant(args.save, args.yes, vault)
     first = " ".join(args.prompt).strip()
+    if args.study is not None:
+        first = (f"Study mode: use study_online_levels to study {args.study} (try a couple of "
+                 "searches or difficulties). Work out concrete, numeric design rules from what you "
+                 "measure, save the useful ones to Design Rules, then give me a short summary."
+                 + (f" Then: {first}" if first else ""))
+        if not vault:
+            print("(Tip: add --vault so the rules it learns are saved.)\n")
     try:
         if first:
             print(f"you> {first}")
