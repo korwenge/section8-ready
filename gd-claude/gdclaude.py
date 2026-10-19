@@ -8,10 +8,12 @@ review them, and build new levels or sections directly into your save file
     python gdclaude.py                      # chat
     python gdclaude.py "make a short easy cube level called Sunrise"
     python gdclaude.py --list               # just list your levels
+    python gdclaude.py --vault ~/Obsidian/MyVault   # remember things between sessions
 """
 
 import argparse
 import json
+import os
 import sys
 
 import anthropic
@@ -19,6 +21,7 @@ import anthropic
 import gd_api
 from level_builder import OBJECT_SCHEMA, PALETTE, DesignError, from_gd_object, preview, to_gd_object, validate
 from save_file import LocalLevels
+from vault import Vault
 
 MODEL = "claude-opus-5-5"
 
@@ -53,6 +56,26 @@ section, then add_to_level for the rest).
 - The player sees an ASCII preview and must approve every change; if they decline, adjust.
 - Remind them to open the level in the editor and playtest -- you can't run the game.
 - Keep chat replies short and friendly; GD slang is fine."""
+
+MEMORY_PROMPT = """
+
+## Your memory (the player's Obsidian vault)
+You have long-term memory: notes in the player's Obsidian vault, loaded below. They are \
+how you get better over time, so use them and keep them up to date with save_note:
+- "My Style": the player's taste (favourite gamemodes, difficulty, decoration style, \
+  pet peeves). Update it whenever you learn something new about what they like.
+- "Design Rules": general lessons about what makes gameplay good or bad, e.g. after the \
+  player says a jump was impossible or a section felt great. Write rules you can reuse, \
+  with numbers where possible ("2-cell ship corridors felt too tight for an easy level").
+- "Feedback Log": filled in automatically when the player rejects a preview.
+- "Levels/<level name>": one note per level you work on: its idea, sections built so \
+  far (with column ranges), and what's left to do. Link notes with [[wiki links]].
+Follow what the notes say over your general defaults. Don't save trivia or duplicates; \
+replace a note when it has become messy.
+
+<vault>
+{notes}
+</vault>"""
 
 TOOLS = [
     {
@@ -104,6 +127,30 @@ TOOLS = [
         },
     },
     {
+        "name": "read_note",
+        "description": "Read a note from your memory in the player's Obsidian vault.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"title": {"type": "string", "description": "e.g. 'My Style' or 'Levels/Sunrise'"}},
+            "required": ["title"],
+        },
+    },
+    {
+        "name": "save_note",
+        "description": ("Write to your memory in the player's Obsidian vault. 'append' adds to the "
+                        "end of the note (creating it if needed); 'replace' rewrites the whole note. "
+                        "Titles are top-level ('Design Rules') or 'Levels/<level name>'."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "content": {"type": "string", "description": "Markdown."},
+                "mode": {"type": "string", "enum": ["append", "replace"]},
+            },
+            "required": ["title", "content"],
+        },
+    },
+    {
         "name": "search_online_levels",
         "description": ("Search the official Geometry Dash servers for inspiration. search_type: "
                         "search, most_downloaded, most_liked, trending, recent, featured, awarded, "
@@ -130,15 +177,20 @@ TOOLS = [
 # Requests are streamed, so let big object lists stream as they're written (we validate ourselves).
 for _tool in TOOLS:
     _tool["eager_input_streaming"] = True
+VAULT_TOOLS = {"read_note", "save_note"}
 
 
 class Assistant:
-    def __init__(self, save_path=None, auto_yes=False):
+    def __init__(self, save_path=None, auto_yes=False, vault=None):
         self.client = anthropic.Anthropic()
         self.save_path = save_path
         self.auto_yes = auto_yes
+        self.vault = vault
         self._levels = None
         self.messages = []
+        # Built once per session so the prompt cache keeps hitting.
+        self.system = SYSTEM_PROMPT + (MEMORY_PROMPT.format(notes=vault.context()) if vault else "")
+        self.tools = [t for t in TOOLS if vault or t["name"] not in VAULT_TOOLS]
 
     @property
     def levels(self):
@@ -153,7 +205,7 @@ class Assistant:
             raise DesignError(f"'{key}' must be a non-empty string")
         return args[key]
 
-    def _confirm(self, title, objects, col_offset=0):
+    def _confirm(self, title, objects, col_offset=0, level_name=None):
         print(f"\n--- {title} ({len(objects)} objects) ---")
         print(preview(objects, col_offset))
         if self.auto_yes:
@@ -161,7 +213,10 @@ class Assistant:
         answer = input("Write this to your save? [y = yes / n = no / or type feedback] ").strip()
         if answer.lower() in ("y", "yes"):
             return True, ""
-        return False, "" if answer.lower() in ("", "n", "no") else answer
+        feedback = "" if answer.lower() in ("", "n", "no") else answer
+        if feedback and self.vault:
+            self.vault.log_feedback(level_name or title, feedback)
+        return False, feedback
 
     def tool_list_my_levels(self, args):
         return self.levels.summaries()
@@ -189,7 +244,7 @@ class Assistant:
         name = self._require_str(args, "name")
         objects = args.get("objects")
         validate(objects)
-        ok, feedback = self._confirm(f"New level '{name}'", objects)
+        ok, feedback = self._confirm(f"New level '{name}'", objects, level_name=name)
         if not ok:
             return {"written": False, "player_feedback": feedback or "Player declined."}
         self.levels.create_level(name, str(args.get("description") or ""),
@@ -207,13 +262,22 @@ class Assistant:
                         for o in self.levels.level_string(level).split(";")[1:] if o]
             offset = int(max((o["col"] for o in existing), default=-4)) + 4
         ok, feedback = self._confirm(f"Add to '{level.get('k2')}' starting at col {offset}",
-                                     objects, offset)
+                                     objects, offset, level_name=level.get("k2"))
         if not ok:
             return {"written": False, "player_feedback": feedback or "Player declined."}
         self.levels.append_objects(level, [to_gd_object(o, offset) for o in objects])
         self.levels.save()
         return {"written": True, "level": level.get("k2"), "objects": len(objects),
                 "placed_from_col": offset}
+
+    def tool_read_note(self, args):
+        return self.vault.read(self._require_str(args, "title"))
+
+    def tool_save_note(self, args):
+        mode = "replace" if args.get("mode") == "replace" else "append"
+        saved = self.vault.write(self._require_str(args, "title"), self._require_str(args, "content"), mode)
+        print(f"  (remembered in your vault: GD Claude/{saved}.md)")
+        return {"saved": saved}
 
     def tool_search_online_levels(self, args):
         levels = gd_api.search_levels(str(args.get("query") or ""),
@@ -227,14 +291,14 @@ class Assistant:
 
     def run_tool(self, block):
         handler = getattr(self, f"tool_{block.name}", None)
-        if handler is None:
+        if handler is None or (block.name in VAULT_TOOLS and not self.vault):
             return f"Unknown tool {block.name}", True
         args = block.input if isinstance(block.input, dict) else {}
         try:
             return json.dumps(handler(args), ensure_ascii=False), False
         except FileNotFoundError as e:
             return f"{e}. The player can pass --save <path to CCLocalLevels.dat>.", True
-        except (DesignError, KeyError, gd_api.GDError) as e:
+        except (DesignError, KeyError, ValueError, gd_api.GDError) as e:
             return str(e), True
         except Exception as e:  # network errors from the GD servers etc.
             return f"{type(e).__name__}: {e}", True
@@ -245,8 +309,8 @@ class Assistant:
         with self.client.beta.messages.stream(
             model=MODEL,
             max_tokens=64000,
-            system=SYSTEM_PROMPT,
-            tools=TOOLS,
+            system=self.system,
+            tools=self.tools,
             messages=self.messages,
             output_config={"effort": "high"},
             cache_control={"type": "ephemeral"},
@@ -298,6 +362,8 @@ def main():
     parser.add_argument("--save", help="path to CCLocalLevels.dat (auto-detected by default)")
     parser.add_argument("--yes", action="store_true", help="write changes without asking")
     parser.add_argument("--list", action="store_true", help="list your Create tab levels and exit")
+    parser.add_argument("--vault", default=os.environ.get("GD_CLAUDE_VAULT"),
+                        help="your Obsidian vault folder, for memory (or set GD_CLAUDE_VAULT)")
     args = parser.parse_args()
 
     if args.list:
@@ -307,7 +373,13 @@ def main():
 
     print("GD Claude -- level-building assistant.  CLOSE GEOMETRY DASH before letting me save,")
     print("or the game will overwrite my changes when it exits.  Type 'quit' to leave.\n")
-    assistant = Assistant(args.save, args.yes)
+    vault = None
+    if args.vault:
+        vault = Vault(args.vault)
+        print(f"Memory: {len(vault.titles())} notes in {vault.dir}\n")
+    else:
+        print("(No --vault given: I won't remember anything after you quit.)\n")
+    assistant = Assistant(args.save, args.yes, vault)
     first = " ".join(args.prompt).strip()
     try:
         if first:

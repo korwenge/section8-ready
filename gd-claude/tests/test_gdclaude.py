@@ -13,6 +13,7 @@ import gd_api  # noqa: E402
 import gdclaude  # noqa: E402
 from level_builder import DesignError, from_gd_object, preview, to_gd_object, validate  # noqa: E402
 from save_file import DEFAULT_HEADER, LocalLevels, encrypt, encode_level_string  # noqa: E402
+from vault import Vault  # noqa: E402
 
 EXISTING_LEVEL = DEFAULT_HEADER + "1,1,2,315,3,15;1,8,2,345,3,15;1,13,2,600,3,45;"
 
@@ -106,6 +107,13 @@ def test_level_data_decoding():
 
 # --- the assistant loop, with a fake Claude ----------------------------------
 
+def make_assistant(save_path, auto_yes=True, vault=None):
+    assistant = gdclaude.Assistant.__new__(gdclaude.Assistant)
+    assistant.save_path, assistant.auto_yes, assistant._levels, assistant.messages = save_path, auto_yes, None, []
+    assistant.vault = vault
+    return assistant
+
+
 def tool_use(name, inp, id_="toolu_1"):
     return SimpleNamespace(type="tool_use", name=name, input=inp, id=id_)
 
@@ -116,8 +124,7 @@ def text(t):
 
 def test_assistant_builds_a_level(tmp_path, monkeypatch):
     path = make_save(tmp_path)
-    assistant = gdclaude.Assistant.__new__(gdclaude.Assistant)
-    assistant.save_path, assistant.auto_yes, assistant._levels, assistant.messages = path, True, None, []
+    assistant = make_assistant(path)
 
     design = [{"type": "block", "col": 8, "row": 0}, {"type": "spike", "col": 12, "row": 0}]
     replies = iter([
@@ -144,8 +151,8 @@ def test_assistant_builds_a_level(tmp_path, monkeypatch):
 
 def test_assistant_reports_bad_tool_input_and_declines(tmp_path, monkeypatch):
     path = make_save(tmp_path)
-    assistant = gdclaude.Assistant.__new__(gdclaude.Assistant)
-    assistant.save_path, assistant.auto_yes, assistant._levels, assistant.messages = path, False, None, []
+    vault = Vault(tmp_path)
+    assistant = make_assistant(path, auto_yes=False, vault=vault)
     monkeypatch.setattr("builtins.input", lambda _: "make it harder")
 
     replies = iter([
@@ -161,12 +168,64 @@ def test_assistant_reports_bad_tool_input_and_declines(tmp_path, monkeypatch):
     assert bad["is_error"] and "palette" in bad["content"]
     assert json.loads(declined["content"]) == {"written": False, "player_feedback": "make it harder"}
     assert [s["name"] for s in LocalLevels(path).summaries()] == ["My First Level"]
+    assert "[[Y]]: make it harder" in vault.read("Feedback Log")
 
 
 def test_refusal_rolls_back_turn(tmp_path, monkeypatch):
-    assistant = gdclaude.Assistant.__new__(gdclaude.Assistant)
-    assistant.save_path, assistant.auto_yes, assistant._levels, assistant.messages = None, True, None, []
+    assistant = make_assistant(None)
     monkeypatch.setattr(assistant, "_call_claude",
                         lambda: SimpleNamespace(stop_reason="refusal", content=[]))
     assistant.ask("hi")
     assert assistant.messages == []
+
+
+# --- Obsidian memory -----------------------------------------------------------
+
+def test_vault_notes(tmp_path):
+    vault = Vault(tmp_path)
+    assert {"My Style", "Design Rules", "Feedback Log"} <= set(vault.titles())
+    vault.write("My Style", "- loves wave sections")
+    vault.write("Levels/Sunrise", "Idea: chill cube level", mode="replace")
+    assert vault.read("My Style").endswith("- loves wave sections\n")
+    assert vault.read("Levels/Sunrise").startswith("---\ntags: [gd-claude]\n---\n# Sunrise")
+    assert (tmp_path / "GD Claude" / "Levels" / "Sunrise.md").exists()
+    context = vault.context()
+    assert context.index('title="My Style"') < context.index('title="Levels/Sunrise"')
+    assert "loves wave sections" in context
+
+
+@pytest.mark.parametrize("title", ["../evil", "Other/Note", "Levels/a/b", "", "///"])
+def test_vault_stays_in_its_folder(tmp_path, title):
+    vault = Vault(tmp_path)
+    try:
+        path = vault._path(title)
+    except ValueError:
+        return
+    assert vault.dir in path.parents
+
+
+def test_memory_tools(tmp_path):
+    vault = Vault(tmp_path)
+    assistant = make_assistant(None, vault=vault)
+    content, err = assistant.run_tool(tool_use("save_note", {"title": "Design Rules", "content": "- no triple spikes on easy"}))
+    assert not err and json.loads(content) == {"saved": "Design Rules"}
+    content, err = assistant.run_tool(tool_use("read_note", {"title": "Design Rules"}))
+    assert not err and "no triple spikes" in json.loads(content)
+    _, err = assistant.run_tool(tool_use("read_note", {"title": "Nope"}))
+    assert err
+
+    no_memory = make_assistant(None)
+    _, err = no_memory.run_tool(tool_use("save_note", {"title": "x", "content": "y"}))
+    assert err
+
+
+def test_system_prompt_includes_vault(tmp_path, monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "dummy")
+    vault = Vault(tmp_path)
+    vault.write("My Style", "- hates mini wave")
+    with_vault = gdclaude.Assistant(vault=vault)
+    assert "hates mini wave" in with_vault.system
+    assert {"read_note", "save_note"} <= {t["name"] for t in with_vault.tools}
+    without = gdclaude.Assistant()
+    assert "<vault>" not in without.system
+    assert not {"read_note", "save_note"} & {t["name"] for t in without.tools}

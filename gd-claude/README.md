@@ -44,12 +44,33 @@ GD Claude finds the save file on its own on Windows, macOS, and Steam/Proton.
 If it can't, add `--save "path/to/CCLocalLevels.dat"`. Before its first write
 in each session it copies your save to `CCLocalLevels.dat.backup-<time>`.
 
+## Memory: making it learn (Obsidian)
+Without memory, GD Claude forgets everything when you quit. Point it at your Obsidian vault:
+
+```
+python gdclaude.py --vault "C:/Users/you/Documents/MyVault"
+```
+(or set `GD_CLAUDE_VAULT` once and skip the flag). It creates a `GD Claude/` folder in your vault:
+
+| Note | What goes in it |
+|---|---|
+| `My Style` | Your taste: favourite gamemodes, difficulty, things you hate |
+| `Design Rules` | Lessons it learned, e.g. "2-cell ship corridors are too tight for easy levels" |
+| `Feedback Log` | Filled in automatically every time you reject a preview and say why |
+| `Levels/<name>` | One note per level: the idea, sections built so far, what's left to do |
+
+GD Claude reads all of these at the start of every session and updates them as you
+work, so the more you use it and the more feedback you give, the better it fits
+you. The notes are normal Markdown, so you can read and edit them in Obsidian.
+Writing your own rules into `My Style` is the fastest way to teach it.
+
 ## How it works
 | File | What it does |
 |---|---|
 | `gdclaude.py` | Chat loop. Claude (`claude-opus-5-5`) uses tools to list and inspect your levels, create levels, add sections, and look up online levels |
 | `save_file.py` | Decrypts and re-encrypts `CCLocalLevels.dat` (XOR+base64+gzip on Windows, AES on macOS) |
 | `level_builder.py` | Claude designs on a grid (1 cell = 1 block, row 0 = ground). This file turns that grid into real GD objects (`1,8,2,315,3,15`) and draws the previews |
+| `vault.py` | Memory: reads and writes notes in your Obsidian vault (only inside its `GD Claude/` folder) |
 | `gd_api.py` | Talks to the official boomlings.com servers for searching and downloading levels |
 
 Claude can place blocks, spikes, saws, orbs, pads, every gamemode, gravity,
