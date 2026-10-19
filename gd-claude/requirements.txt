@@ -1,0 +1,3 @@
+anthropic>=1.15
+requests
+cryptography  # only needed for macOS saves
