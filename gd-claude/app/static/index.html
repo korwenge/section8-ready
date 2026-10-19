@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GD Claude</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" class="logo" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 15l3-6 2 4 1.5-2L17 15z"/></svg>
+      <span>GD Claude</span>
+    </div>
+    <div class="level-picker">
+      <select id="levelSelect" title="Level from your Create tab"><option>Loading levels…</option></select>
+      <button class="icon-btn" id="reloadBtn" title="Reload levels from the save file">
+        <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>
+      </button>
+    </div>
+    <div class="spacer"></div>
+    <div class="gd-status" id="gdStatus" title="Is Geometry Dash running?">
+      <span class="dot"></span><span class="label">Checking GD…</span>
+    </div>
+    <div class="queue-wrap">
+      <button class="btn ghost" id="queueBtn">Queue <span class="badge" id="queueCount">0</span></button>
+      <div class="popover hidden" id="queuePopover"></div>
+    </div>
+    <button class="btn" id="applyBtn" title="Write queued changes into your save (GD must be closed)">Apply now</button>
+    <button class="btn primary" id="launchBtn" title="Start Geometry Dash through Steam">
+      <svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg> Open GD
+    </button>
+    <button class="icon-btn" id="settingsBtn" title="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="workspace">
+    <section class="viewport" id="viewport">
+      <canvas id="canvas"></canvas>
+      <div class="empty-state hidden" id="emptyState">
+        <h2>Pick a level</h2>
+        <p>Choose a level from your Create tab at the top, then drag a box over the part you want to decorate.</p>
+      </div>
+      <div class="toolbar">
+        <button class="tool active" data-tool="select" title="Select area (S)">
+          <svg viewBox="0 0 24 24"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/></svg>
+        </button>
+        <button class="tool" data-tool="pan" title="Move around (H, or hold Space / right mouse)">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg>
+        </button>
+        <span class="sep"></span>
+        <button class="tool" id="fitBtn" title="Fit level (F)">
+          <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="1"/><path d="M8 10h8M8 14h5"/></svg>
+        </button>
+        <button class="tool" id="zoomSelBtn" title="Zoom to selection (Z)">
+          <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5"/></svg>
+        </button>
+        <span class="sep"></span>
+        <label class="toggle" title="Show your proposal on the level"><input type="checkbox" id="showProposal" checked><span>Preview</span></label>
+        <label class="toggle" title="Show trigger objects"><input type="checkbox" id="showTriggers"><span>Triggers</span></label>
+      </div>
+      <div class="coords" id="coords"></div>
+    </section>
+
+    <aside class="panel">
+      <div class="selection-card" id="selectionCard">
+        <div class="sel-title">Selection</div>
+        <div class="sel-info" id="selInfo">Drag on the level to select an area</div>
+        <button class="link-btn hidden" id="clearSel">Clear</button>
+      </div>
+
+      <div class="modes" id="modes">
+        <button class="chip active" data-mode="Decorate">Decorate</button>
+        <button class="chip" data-mode="Pixel art">Pixel art</button>
+        <button class="chip" data-mode="Image to pixel art">Image</button>
+        <button class="chip" data-mode="Fix structures">Fix</button>
+        <button class="chip" data-mode="Copy style across the level">Copy style</button>
+      </div>
+
+      <div class="chat" id="chat">
+        <div class="hint" id="chatHint">
+          <p><b>How it works</b></p>
+          <ol>
+            <li>Drag a box over part of your level.</li>
+            <li>Say what you want, like <i>"neon cyberpunk deco, purple and cyan glow"</i> or <i>"pixel art of a red dragon"</i>.</li>
+            <li>Claude builds it. Check the preview, then <b>Accept</b> or ask for changes.</li>
+            <li>Accepted changes go into your save when you close GD (or press <b>Apply now</b>).</li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="proposal-bar hidden" id="proposalBar">
+        <div class="proposal-info" id="proposalInfo"></div>
+        <div class="proposal-actions">
+          <button class="btn ghost" id="discardBtn">Discard</button>
+          <button class="btn primary" id="acceptBtn">Accept</button>
+        </div>
+      </div>
+
+      <div class="image-box hidden" id="imageBox">
+        <img id="imagePreview" alt="">
+        <div class="image-controls">
+          <label>Pixel size <select id="pixelSize">
+            <option value="3.75">3.75 (very fine)</option><option value="7.5" selected>7.5 (fine)</option>
+            <option value="15">15 (chunky)</option><option value="30">30 (1 block)</option></select></label>
+          <label>Colours <input type="number" id="colourCount" min="2" max="64" value="24"></label>
+          <div class="image-buttons">
+            <button class="btn ghost small" id="removeImage">Remove</button>
+            <button class="btn small" id="convertBtn" title="Convert right away, without Claude (free)">Convert now</button>
+          </div>
+        </div>
+      </div>
+
+      <form class="composer" id="composer">
+        <div class="drop-hint" id="dropHint">Drop an image here</div>
+        <textarea id="prompt" rows="3" placeholder="What should Claude do in the selected area?"></textarea>
+        <div class="composer-row">
+          <label class="attach" title="Attach an image">
+            <input type="file" id="fileInput" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+            <svg viewBox="0 0 24 24"><path d="M21 12.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8.5-8.5"/></svg>
+          </label>
+          <span class="composer-hint">Ctrl+Enter to send</span>
+          <button type="button" class="btn ghost hidden" id="stopBtn">Stop</button>
+          <button type="submit" class="btn primary" id="sendBtn">Send</button>
+        </div>
+      </form>
+    </aside>
+  </main>
+
+  <div class="modal hidden" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="settingsTitle">Settings</h2>
+        <button class="icon-btn" id="closeSettings" title="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <p class="welcome hidden" id="welcome">Welcome! Paste your Claude API key to get started. You can create one at <b>console.anthropic.com</b> → API Keys (it needs some credit under Billing).</p>
+      <label class="field">Claude API key
+        <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
+        <small id="apiKeyHint"></small>
+      </label>
+      <label class="field">Obsidian vault folder <small>(optional, lets Claude remember your styles)</small>
+        <div class="row"><input type="text" id="vaultPath" placeholder="C:\Users\you\Documents\MyVault"><button class="btn ghost" id="browseVault" type="button">Browse</button></div>
+      </label>
+      <label class="field">Save file
+        <input type="text" id="savePath">
+        <small id="saveHint"></small>
+      </label>
+      <label class="check"><input type="checkbox" id="autoApply"> Apply queued changes automatically when Geometry Dash closes</label>
+      <label class="field">Model
+        <input type="text" id="model">
+      </label>
+      <div class="field">Backups <small>(made before every apply)</small>
+        <div class="backups" id="backups"></div>
+      </div>
+      <div class="modal-foot">
+        <span class="muted" id="catalogInfo"></span>
+        <button class="btn primary" id="saveSettings">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+  <script src="app.js"></script>
+</body>
+</html>

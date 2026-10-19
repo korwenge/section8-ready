@@ -1,0 +1,61 @@
+name: GD Claude app (Windows .exe)
+
+on:
+  push:
+    paths:
+      - "gd-claude/**"
+      - ".github/workflows/gd-claude-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write  # to publish the .exe as a release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: gd-claude
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r app/requirements.txt pyinstaller pytest
+
+      - name: Run tests
+        run: python -m pytest -q tests
+
+      - name: Build GD-Claude.exe
+        run: |
+          python app/make_icon.py
+          pyinstaller --noconfirm app/gd-claude.spec
+
+      - name: Smoke-test the .exe
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "selftest.txt"
+          $p = Start-Process -FilePath "dist/GD-Claude.exe" -ArgumentList "--selftest=$out" -Wait -PassThru
+          Get-Content $out
+          if ($p.ExitCode -ne 0) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GD-Claude-windows
+          path: gd-claude/dist/GD-Claude.exe
+
+      - name: Publish as the "latest" download
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "gd-claude-latest"
+          gh release delete $tag --yes --cleanup-tag 2>$null
+          gh release create $tag "dist/GD-Claude.exe" --prerelease --target "${{ github.sha }}" `
+            --title "GD Claude (latest build)" `
+            --notes "Download GD-Claude.exe below and double-click it. Built from ${{ github.ref_name }} @ ${{ github.sha }}."

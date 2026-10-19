@@ -1,4 +1,33 @@
-# GD Claude: an AI level builder for the Geometry Dash Create tab
+# GD Claude
+
+**The app:** a deco and pixel-art studio for Geometry Dash, powered by Claude. Download
+`GD-Claude.exe` from this repo's Releases page (the "GD Claude (latest build)" release) and
+double-click it.
+
+1. Pick a level from your Create tab at the top.
+2. Drag a box over the part you want to work on, like a crop tool.
+3. Say what you want: *"neon cyberpunk deco, purple and cyan glow"*, *"pixel art of a red
+   dragon"*, *"fix these pillars"*, *"copy the deco from blocks 40-60 here"*. You can also
+   drop in an image and press **Convert now** to turn it into pixel art for free, without Claude.
+4. Claude looks at the area (it sees a picture of it), builds the deco, checks its own
+   result, and shows a preview on your level. **Accept** it or ask for changes.
+5. Accepted changes wait in the **Queue**. GD only reads levels at startup, so the app
+   writes them into your save the moment you close Geometry Dash (or when you press
+   **Apply now**). Then press **Open GD**.
+
+Every apply makes a backup first (Settings → Backups → Restore). In Settings, paste your
+Claude API key (from console.anthropic.com) and, optionally, your Obsidian vault folder so
+Claude remembers the deco styles you like.
+
+Live editing while GD is running would need a Geode mod. That can be added once Geode
+supports the current GD version.
+
+Developers: run the app from source with `pip install -r app/requirements.txt`, then
+`python app/main.py` (add `--browser` to use your normal browser).
+
+---
+
+## Command-line level builder
 
 You chat with Claude about your Geometry Dash levels. GD Claude reads the levels
 in your **Create tab**, reviews them, and **builds new levels or sections

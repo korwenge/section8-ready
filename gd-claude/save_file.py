@@ -193,12 +193,21 @@ class LocalLevels:
         level["k48"] = int(level.get("k48") or 0) + len(object_strings)
         level["k16"] = int(level.get("k16") or 1)
 
-    def save(self):
+    def set_level_string(self, level, level_string):
+        level["k4"] = encode_level_string(level_string)
+        level["k48"] = level_string.count(";") - 1
+
+    def save(self, backup_dir=None, quiet=False):
+        """Write the save file, backing up the original first. Returns the backup path (or None)."""
+        backup = None
         if not self._backed_up:
-            backup = self.path.with_name(f"{self.path.name}.backup-{time.strftime('%Y%m%d-%H%M%S')}")
+            folder = Path(backup_dir) if backup_dir else self.path.parent
+            folder.mkdir(parents=True, exist_ok=True)
+            backup = folder / f"{self.path.name}.backup-{time.strftime('%Y%m%d-%H%M%S')}"
             shutil.copy2(self.path, backup)
             self._backed_up = True
-            print(f"  (backed up your original save to {backup})")
+            if not quiet:
+                print(f"  (backed up your original save to {backup})")
         llm = {k: v for k, v in self.top.get("LLM_01", {}).items() if not k.startswith("k_")}
         llm.setdefault("_isArr", True)
         for i, lvl in enumerate(self.levels):
@@ -211,3 +220,4 @@ class LocalLevels:
         tmp = self.path.with_suffix(".tmp")
         tmp.write_bytes(encrypt(xml_text, self.mac))
         tmp.replace(self.path)
+        return backup

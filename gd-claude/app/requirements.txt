@@ -1,0 +1,5 @@
+anthropic>=1.15
+pillow>=10
+pywebview>=5
+requests
+cryptography
